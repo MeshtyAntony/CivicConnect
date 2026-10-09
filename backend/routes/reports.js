@@ -16,6 +16,7 @@ const {
 } = require('../utils/reportHelpers');
 
 const router = express.Router();
+const crypto = require('crypto');
 
 const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 200;
@@ -122,6 +123,24 @@ router.get('/', async (req, res) => {
   });
 });
 
+router.get('/map', async (req, res) => {
+  const docs = await reportsCollection(req)
+    .find({
+      'gpsCoordinates.latitude': { $type: 'number', $gte: -90, $lte: 90 },
+      'gpsCoordinates.longitude': { $type: 'number', $gte: -180, $lte: 180 },
+    })
+    .sort({ createdAt: -1 })
+    .limit(MAX_LIMIT)
+    .toArray();
+
+  const base = baseUrl();
+
+  return res.json({
+    count: docs.length,
+    reports: docs.map((doc) => toReportResponse(doc, base)),
+  });
+});
+
 // ---------- GET /api/reports/:id ----------
 router.get('/:id', async (req, res) => {
   if (!isValidObjectId(req.params.id)) {
@@ -135,5 +154,161 @@ router.get('/:id', async (req, res) => {
 
   return res.json({ report: toReportResponse(doc, baseUrl()) });
 });
+
+router.post('/:id/support', async (req, res) => {
+  if (!isValidObjectId(req.params.id)) {
+    return res.status(400).json({ error: 'Invalid report ID' });
+  }
+
+  const clientId = req.get('x-client-id');
+
+  if (!clientId || clientId.length < 8 || clientId.length > 128) {
+    return res.status(400).json({
+      error: 'A valid x-client-id header is required',
+    });
+  }
+
+  const supporterHash = crypto
+    .createHash('sha256')
+    .update(clientId)
+    .digest('hex');
+
+  const collection = reportsCollection(req);
+  const reportId = new ObjectId(req.params.id);
+
+  const result = await collection.updateOne(
+    {
+      _id: reportId,
+      supporters: { $ne: supporterHash },
+    },
+    {
+      $addToSet: { supporters: supporterHash },
+      $inc: { supportCount: 1 },
+    }
+  );
+
+  if (result.matchedCount === 0) {
+    const existingReport = await collection.findOne({ _id: reportId });
+
+    if (!existingReport) {
+      return res.status(404).json({ error: 'Report not found' });
+    }
+
+    return res.status(409).json({
+      error: 'You have already supported this report',
+    });
+  }
+
+  const updatedReport = await collection.findOne({ _id: reportId });
+
+  return res.json({
+    message: 'Report supported successfully',
+    report: toReportResponse(updatedReport, baseUrl()),
+  });
+});
+
+router.post('/:id/comments', async (req, res) => {
+  if (!isValidObjectId(req.params.id)) {
+    return res.status(400).json({ error: 'Invalid report ID' });
+  }
+
+  const comment = req.body?.comment;
+
+  if (typeof comment !== 'string' || !comment.trim() || comment.trim().length > 500) {
+    return res.status(400).json({
+      error: 'Comment must contain between 1 and 500 characters',
+    });
+  }
+
+  const reportId = new ObjectId(req.params.id);
+  const collection = reportsCollection(req);
+
+  const result = await collection.updateOne(
+    { _id: reportId },
+    { $push: { comments: comment.trim() } }
+  );
+
+  if (result.matchedCount === 0) {
+    return res.status(404).json({ error: 'Report not found' });
+  }
+
+  const updatedReport = await collection.findOne({ _id: reportId });
+
+  return res.status(201).json({
+    message: 'Comment added successfully',
+    report: toReportResponse(updatedReport, baseUrl()),
+  });
+});
+
+router.get('/:id/comments', async (req, res) => {
+  if (!isValidObjectId(req.params.id)) {
+    return res.status(400).json({ error: 'Invalid report ID' });
+  }
+
+  const report = await reportsCollection(req).findOne(
+    { _id: new ObjectId(req.params.id) },
+    { projection: { comments: 1 } }
+  );
+
+  if (!report) {
+    return res.status(404).json({ error: 'Report not found' });
+  }
+
+  return res.json({
+    comments: report.comments || [],
+  });
+});
+
+router.patch('/:id/status', async (req, res) => {
+  if (!isValidObjectId(req.params.id)) {
+    return res.status(400).json({ error: 'Invalid report ID' });
+  }
+
+  const adminKey = process.env.ADMIN_KEY;
+  const providedKey = req.get('x-admin-key');
+
+  if (!adminKey) {
+    return res.status(503).json({
+      error: 'Admin access is not configured',
+    });
+  }
+
+  if (!providedKey || providedKey !== adminKey) {
+    return res.status(401).json({
+      error: 'Unauthorized: invalid admin key',
+    });
+  }
+
+  const status =
+    typeof req.body?.status === 'string'
+      ? req.body.status.toUpperCase()
+      : '';
+
+  if (!STATUSES.includes(status)) {
+    return res.status(400).json({
+      error: `Status must be one of: ${STATUSES.join(', ')}`,
+    });
+  }
+
+  const reportId = new ObjectId(req.params.id);
+  const collection = reportsCollection(req);
+
+  const result = await collection.updateOne(
+    { _id: reportId },
+    { $set: { status } }
+  );
+
+  if (result.matchedCount === 0) {
+    return res.status(404).json({ error: 'Report not found' });
+  }
+
+  const updatedReport = await collection.findOne({ _id: reportId });
+
+  return res.json({
+    message: 'Report status updated successfully',
+    report: toReportResponse(updatedReport, baseUrl()),
+  });
+});
+
 
 module.exports = router;
