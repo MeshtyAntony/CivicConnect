@@ -63,22 +63,27 @@ function getGPSLocation() {
 }
 
 
-  function handleSubmit(event) {
-    event.preventDefault()
-    const reportData = {
-  title,
-  description,
-  category,
-  priority,
-  location,
-  photo,
-  gpsCoordinates,
-}
+  
+async function handleSubmit(event) {
+  event.preventDefault()
 
-console.log(reportData)
-onSubmitReport?.(reportData)
+  const reportData = {
+    title,
+    description,
+    category,
+    priority,
+    location,
+    photo,
+    gpsCoordinates,
+  }
+
+  const success = await onSubmitReport?.(reportData)
+
+  if (success) {
     setSubmitted(true)
   }
+}
+
 
   return (
     <div className="report-form">

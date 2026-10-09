@@ -116,29 +116,51 @@ useEffect(() => {
   );
 }, [notifications]);
 
-function handleReportSubmit(reportData) {
-  const saveReport = (photoData) => {
-    const reportWithDate = {
-      ...reportData,
-      photo: photoData,
-      date: new Date().toLocaleDateString('en-IN', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-      }).toUpperCase(),
-      status: 'PENDING',
-    };
+
+async function handleReportSubmit(reportData) {
+  try {
+    const formData = new FormData();
+
+    formData.append('title', reportData.title);
+    formData.append('description', reportData.description);
+    formData.append('category', reportData.category);
+    formData.append('location', reportData.location);
+
+    if (reportData.priority) {
+      formData.append('priority', reportData.priority);
+    }
+
+    if (reportData.photo instanceof File) {
+      formData.append('photo', reportData.photo);
+    }
+
+    const response = await fetch('http://localhost:5000/api/reports', {
+      method: 'POST',
+      body: formData,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.details
+          ? JSON.stringify(data.details)
+          : data.error || 'Failed to submit report'
+      );
+    }
+
+    const savedReport = data.report;
 
     setReports((previousReports) => [
+      savedReport,
       ...previousReports,
-      reportWithDate,
     ]);
 
     setNotifications((previousNotifications) => [
       ...previousNotifications,
       {
         id: Date.now(),
-        message: `Your report "${reportWithDate.title}" has been submitted successfully.`,
+        message: `Your report "${savedReport.title}" has been submitted successfully.`,
         date: new Date().toLocaleDateString('en-IN', {
           day: '2-digit',
           month: 'short',
@@ -147,21 +169,15 @@ function handleReportSubmit(reportData) {
         read: false,
       },
     ]);
-  };
 
-  if (!reportData.photo) {
-    saveReport(null);
-    return;
+    return true;
+  } catch (error) {
+    console.error('Report submission failed:', error);
+    window.alert(`Could not submit report: ${error.message}`);
+    return false;
   }
-
-  const reader = new FileReader();
-
-  reader.onloadend = () => {
-    saveReport(reader.result);
-  };
-
-  reader.readAsDataURL(reportData.photo);
 }
+
 function handleSupport(reportIndex) {
   function handleStatusChange(reportIndex, newStatus) {
   const report = reports[reportIndex];
