@@ -45,11 +45,36 @@ const categoryDescriptions = {
 function App() {
   const [showLandingPage, setShowLandingPage] = useState(true)
     const [activePage, setActivePage] = useState('home')
+    const [reportsLoading, setReportsLoading] = useState(true)
+const [reportsError, setReportsError] = useState('')
     const [selectedCategory, setSelectedCategory] = useState(null)
-    const [reports, setReports] = useState(() => {
-  const savedReports = localStorage.getItem('civicconnect-reports');
-  return savedReports ? JSON.parse(savedReports) : [];
-});
+    const [reports, setReports] = useState([]);
+    
+useEffect(() => {
+  async function fetchReports() {
+    try {
+      setReportsLoading(true);
+      setReportsError('');
+
+      const response = await fetch('http://localhost:5000/api/reports');
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch reports');
+      }
+
+      const data = await response.json();
+      setReports(data.reports || []);
+    } catch (error) {
+      console.error('Error fetching reports:', error);
+      setReportsError('Could not load reports. Please try again.');
+    } finally {
+      setReportsLoading(false);
+    }
+  }
+
+  fetchReports();
+}, []);
+
     const [supportCounts, setSupportCounts] = useState(() => {
   const savedSupports = localStorage.getItem('civicconnect-supports');
   return savedSupports ? JSON.parse(savedSupports) : {};
