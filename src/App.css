@@ -2363,3 +2363,179 @@ body::before {
 .report-card button {
   border-radius: 0;
 }
+
+/* Unified newspaper action row */
+.report-card .report-actions {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px 0;
+  border-top: 1px solid #c9c1b4;
+  border-bottom: 1px solid #c9c1b4;
+}
+
+.report-card .report-actions .support-button,
+.report-card .report-actions .comment-button,
+.report-card .report-actions .delete-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  padding: 4px 0;
+  border: none;
+  background: transparent;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.report-card .report-actions .support-button {
+  color: #315c3b;
+}
+
+.report-card .report-actions .comment-button {
+  color: #28231e;
+}
+
+.report-card .report-actions .delete-button {
+  margin-left: auto;
+  color: #984343;
+  font-weight: 400;
+}
+
+.report-card .report-actions button:hover {
+  background: transparent;
+  text-decoration: underline;
+}
+
+.report-card .report-actions .support-button:disabled {
+  cursor: default;
+}
+
+.report-card .report-actions .support-button.supported {
+  color: #315c3b;
+}
+
+.report-card .comments-list {
+  clear: both;
+  margin-top: 12px;
+}
+
+.report-card .comment-item {
+  padding: 9px 0;
+  border-bottom: 1px solid #d8d0c4;
+  border-radius: 0;
+  background: transparent;
+}
+
+@media (max-width: 480px) {
+  .report-card .report-actions {
+    gap: 14px;
+  }
+
+  .report-card .report-actions .support-button,
+  .report-card .report-actions .comment-button,
+  .report-card .report-actions .delete-button {
+    font-size: 12px;
+  }
+}
+
+/* FINAL REPORT CARD FRAME */
+.reports-feed .report-card {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0 0 26px;
+  padding: 22px;
+  background: #fbf8f1;
+  border: 1px solid #c8bdac;
+  border-top: 3px solid #24201b;
+  border-radius: 2px;
+  box-shadow: 0 2px 5px rgba(35, 28, 20, 0.05);
+  overflow: hidden;
+}
+
+/* Remove the unwanted vertical line beside article text */
+.reports-feed .article-text {
+  min-width: 0;
+  padding: 0;
+  border: none;
+}
+
+/* Balanced text and photo columns */
+.reports-feed .article-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(230px, 0.85fr);
+  gap: 28px;
+  align-items: start;
+}
+
+/* Larger photo with breathing room on every side */
+.reports-feed .article-layout .feed-report-image {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  height: 280px;
+  margin: 18px 0 0;
+  object-fit: cover;
+  border: 1px solid #c8bdac;
+  border-radius: 0;
+}
+
+/* Keep the author area inside the card */
+.reports-feed .report-author {
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #d4cbbb;
+}
+
+/* Give the action row and comments space inside the frame */
+.reports-feed .report-actions {
+  margin-top: 16px;
+  padding: 10px 0;
+  border-top: 1px solid #d4cbbb;
+  border-bottom: 1px solid #d4cbbb;
+}
+
+.reports-feed .comments-list {
+  margin-top: 14px;
+}
+
+.reports-feed .comment-item {
+  padding: 10px 0;
+  border-bottom: 1px solid #ded6c9;
+  background: transparent;
+  border-radius: 0;
+}
+
+/* Stack image below text on smaller screens */
+@media (max-width: 1050px) {
+  .reports-feed .article-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(190px, 0.8fr);
+    gap: 20px;
+  }
+
+  .reports-feed .article-layout .feed-report-image {
+    height: 240px;
+  }
+}
+
+@media (max-width: 650px) {
+  .reports-feed .report-card {
+    padding: 16px;
+  }
+
+  .reports-feed .article-layout {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .reports-feed .article-layout .feed-report-image {
+    height: auto;
+    max-height: 320px;
+    aspect-ratio: 16 / 10;
+    margin-top: 4px;
+  }
+}

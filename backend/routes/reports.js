@@ -310,5 +310,31 @@ router.patch('/:id/status', async (req, res) => {
   });
 });
 
+router.delete('/:id', async (req, res) => {
+  if (!isValidObjectId(req.params.id)) {
+    return res.status(400).json({
+      error: 'Invalid report ID',
+    });
+  }
+
+  const reportId = new ObjectId(req.params.id);
+  const collection = reportsCollection(req);
+
+  const result = await collection.deleteOne({
+    _id: reportId,
+  });
+
+  if (result.deletedCount === 0) {
+    return res.status(404).json({
+      error: 'Report not found',
+    });
+  }
+
+  return res.json({
+    message: 'Report deleted successfully',
+    id: reportId.toString(),
+  });
+});
+
 
 module.exports = router;

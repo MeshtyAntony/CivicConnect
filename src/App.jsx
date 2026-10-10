@@ -50,6 +50,17 @@ const [reportsError, setReportsError] = useState('')
     const [selectedCategory, setSelectedCategory] = useState(null)
     const [reports, setReports] = useState([]);
     
+function handleStatusChange(reportIndex, newStatus) {
+  setReports((previousReports) =>
+    previousReports.map((report, index) =>
+      index === reportIndex
+        ? { ...report, status: newStatus }
+        : report
+    )
+  );
+}
+
+    
 useEffect(() => {
   async function fetchReports() {
     try {
@@ -178,50 +189,59 @@ async function handleReportSubmit(reportData) {
   }
 }
 
-function handleSupport(reportIndex) {
-  function handleStatusChange(reportIndex, newStatus) {
+
+async function handleSupport(reportIndex) {
   const report = reports[reportIndex];
 
-  if (!report) {
+  if (!report) return;
+
+  const reportId = report.id || report._id;
+
+  if (!reportId) {
+    window.alert('Could not identify this report.');
     return;
   }
 
-  setReports((previousReports) =>
-    previousReports.map((item, index) =>
-      index === reportIndex
-        ? {
-            ...item,
-            status: newStatus,
-          }
-        : item
-    )
-  );
+  try {
+    let clientId = localStorage.getItem('civicconnect-client-id');
 
-  setNotifications((previousNotifications) => [
-    ...previousNotifications,
-    {
-      id: Date.now(),
-      message: `Your report "${report.title}" is now marked as ${newStatus}.`,
-      date: new Date().toLocaleDateString('en-IN', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-      }).toUpperCase(),
-      read: false,
-    },
-  ]);
-}
-  setSupportCounts((previousCounts) => {
-    if (previousCounts[reportIndex] !== undefined) {
-      return previousCounts
+    if (!clientId) {
+      clientId = crypto.randomUUID();
+      localStorage.setItem('civicconnect-client-id', clientId);
     }
 
-    return {
-      ...previousCounts,
-      [reportIndex]: 1,
+    const response = await fetch(
+      `http://localhost:5000/api/reports/${reportId}/support`,
+      {
+        method: 'POST',
+        headers: {
+          'x-client-id': clientId,
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Could not support this report.');
     }
-  })
+
+    setReports((previousReports) =>
+      previousReports.map((item, index) =>
+        index === reportIndex ? data.report : item
+      )
+    );
+
+    setSupportCounts((previousCounts) => ({
+  ...previousCounts,
+  [reportId]: data.report.supportCount ?? 1,
+}));
+  } catch (error) {
+    console.error('Support failed:', error);
+    window.alert(error.message);
+  }
 }
+
 
 function handleCommentSubmit(reportIndex) {
   const newComment = commentInputs[reportIndex]?.trim()
@@ -352,14 +372,15 @@ function handleCommentSubmit(reportIndex) {
 </button>
 
             <button
-  className={`nav-item ${activePage === 'home' ? 'active' : ''}`}
-  onClick={() => {
-    setActivePage('home');
+  
+className={`nav-item ${activePage === 'search' ? 'active' : ''}`}
 
-    setTimeout(() => {
-      document.querySelector('.newspaper-banner input')?.focus();
-    }, 0);
-  }}
+  onClick={() => {
+  setActivePage('search');
+  setTimeout(() => {
+    document.querySelector('.newspaper-banner input')?.focus();
+  }, 0);
+}}
 >
   <Search size={23} />
   <span>Search</span>
@@ -529,7 +550,7 @@ function handleCommentSubmit(reportIndex) {
   <UserCircle size={32} strokeWidth={1.8} />
 
   <div>
-    <strong>Community Member</strong>
+    <strong>{report.authorName || 'Community Member'}</strong>
     <span>Tamil Nadu</span>
   </div>
 </div>
@@ -583,18 +604,20 @@ function handleCommentSubmit(reportIndex) {
         
 
         
-        <button
+ <div className="report-actions">       
+<button
   type="button"
   className={`support-button ${
-    supportCounts[index] !== undefined ? 'supported' : ''
+    supportCounts[report.id] !== undefined ? 'supported' : ''
   }`}
   onClick={() => handleSupport(index)}
-  disabled={supportCounts[index] !== undefined}
+  disabled={supportCounts[report.id] !== undefined}
 >
   <ThumbsUp size={18} />
-  {supportCounts[index] !== undefined ? 'Supported' : 'Support'}{' '}
-  {supportCounts[index] || 0}
+  {supportCounts[report.id] !== undefined ? 'Supported' : 'Support'}{' '}
+  {report.supportCount ?? 0}
 </button>
+
 <button
   type="button"
   className="comment-button"
@@ -607,23 +630,50 @@ function handleCommentSubmit(reportIndex) {
   <MessageCircle size={18} />
   Comment
 </button>
+
 <button
   type="button"
   className="delete-button"
-  onClick={() => {
+  onClick={async () => {
     const confirmed = window.confirm(
       'Are you sure you want to delete this report?'
     );
 
-    if (confirmed) {
-      setReports((previousReports) =>
-        previousReports.filter((_, reportIndex) => reportIndex !== index)
+    if (!confirmed) return;
+
+    const reportId = report.id || report._id;
+
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/reports/${reportId}`,
+        {
+          method: 'DELETE',
+        }
       );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete report');
+      }
+
+      setReports((previousReports) =>
+        previousReports.filter(
+          (item) => (item.id || item._id) !== reportId
+        )
+      );
+
+      alert('Report deleted successfully!');
+    } catch (error) {
+      console.error('Delete error:', error);
+      alert(error.message || 'Could not delete the report.');
     }
   }}
 >
   Delete
 </button>
+</div>
+
 {activeCommentReport === index && (
   <div className="comment-section">
     <input
@@ -647,11 +697,16 @@ function handleCommentSubmit(reportIndex) {
   </div>
 )}
 <div className="comments-list">
-  {(comments[index] || []).map((comment, commentIndex) => (
-    <p key={commentIndex} className="comment-item">
-      <strong>Community Member:</strong> {comment}
-    </p>
-  ))}
+  
+{[
+  ...(report.comments || []),
+  ...(comments[index] || []),
+].map((comment, commentIndex) => (
+  <p key={commentIndex} className="comment-item">
+    <strong>Community Member:</strong> {comment}
+  </p>
+))}
+
 </div>
       </div>
     ))}

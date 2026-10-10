@@ -32,35 +32,96 @@ const priorityNames = {
   critical: 'Critical',
 }
 
-function getGPSLocation() {
-  setGpsMessage('Getting your location...')
+
+async function getGPSLocation() {
+  setGpsMessage('Getting your location...');
 
   if (!navigator.geolocation) {
-    setGpsMessage('GPS is not supported by this browser.')
-    return
+    setGpsMessage('GPS is not supported by this browser.');
+    return;
   }
 
   navigator.geolocation.getCurrentPosition(
-    (position) => {
-      const latitude = position.coords.latitude
-      const longitude = position.coords.longitude
+    async (position) => {
+      const latitude = position.coords.latitude;
+      const longitude = position.coords.longitude;
 
-      setGpsCoordinates({ latitude, longitude })
-      setLocation(`${latitude}, ${longitude}`)
-      setGpsMessage('Location detected successfully!')
+      // Keep the coordinates for future map functionality.
+      setGpsCoordinates({ latitude, longitude });
+
+      try {
+        setGpsMessage('Finding your address...');
+
+        const url = new URL(
+          'https://nominatim.openstreetmap.org/reverse'
+        );
+
+        url.search = new URLSearchParams({
+          format: 'jsonv2',
+          lat: String(latitude),
+          lon: String(longitude),
+          addressdetails: '1',
+        }).toString();
+
+        const response = await fetch(url);
+
+        if (!response.ok) {
+          throw new Error('Address lookup failed.');
+        }
+
+        const data = await response.json();
+        const address = data.address || {};
+
+        const locality =
+          address.suburb ||
+          address.neighbourhood ||
+          address.village ||
+          address.town ||
+          address.city ||
+          address.municipality ||
+          address.county;
+
+        const district =
+          address.city_district ||
+          address.county;
+
+        const parts = [
+          locality,
+          district && district !== locality ? district : null,
+          address.state,
+        ].filter(Boolean);
+
+        if (parts.length > 0) {
+          setLocation([...new Set(parts)].join(', '));
+          setGpsMessage('Address detected successfully!');
+        } else if (data.display_name) {
+          setLocation(data.display_name);
+          setGpsMessage('Address detected successfully!');
+        } else {
+          setGpsMessage(
+            'Address not found. Please enter your location manually.'
+          );
+        }
+      } catch (error) {
+        console.error('Reverse geocoding failed:', error);
+        setGpsMessage(
+          'Could not find the address. Please enter it manually.'
+        );
+      }
     },
     () => {
       setGpsMessage(
         'Unable to get location. Allow location access and try again.'
-      )
+      );
     },
     {
       enableHighAccuracy: true,
       timeout: 10000,
       maximumAge: 0,
     }
-  )
+  );
 }
+
 
 
   

@@ -123,6 +123,7 @@ function toReportResponse(doc, baseUrl) {
   return {
     id: doc._id.toString(),
     title: doc.title,
+    authorName: doc.authorName || 'Community Member',
     description: doc.description,
     category: doc.category,
     priority: doc.priority,

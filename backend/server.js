@@ -53,7 +53,7 @@ app.use(
       return callback(error);
     },
     methods: ['GET', 'POST', 'PATCH', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'x-admin-key'],
+    allowedHeaders: ['Content-Type', 'x-admin-key', 'x-client-id'],
   })
 );
 
